@@ -681,6 +681,25 @@ abstract class AbstractAdmin implements AdminInterface, DomainObjectInterface, A
             $extension->prePersist($this, $object);
         }
 
+        // append parent object if any
+        // todo : clean the way the Admin class can retrieve set the object
+        if ($this->isChild() && $this->getParentAssociationMapping()) {
+
+            $propertyAccessor = $this->getConfigurationPool()->getPropertyAccessor();
+            $propertyPath = new PropertyPath($this->getParentAssociationMapping());
+
+            $object = $this->getSubject();
+
+            $value = $propertyAccessor->getValue($object, $propertyPath);
+
+            if (\is_array($value) || ($value instanceof \Traversable && $value instanceof \ArrayAccess)) {
+                $value[] = $this->getParent()->getSubject();
+                $propertyAccessor->setValue($object, $propertyPath, $value);
+            } else {
+                $propertyAccessor->setValue($object, $propertyPath, $this->getParent()->getSubject());
+            }
+        }
+
         $result = $this->getModelManager()->create($object);
         // BC compatibility
         if (null !== $result) {
@@ -2955,26 +2974,6 @@ EOT;
     {
         if ($this->form) {
             return;
-        }
-
-        // append parent object if any
-        // todo : clean the way the Admin class can retrieve set the object
-        if ($this->isChild() && $this->getParentAssociationMapping()) {
-            $parent = $this->getParent()->getObject($this->request->get($this->getParent()->getIdParameter()));
-
-            $propertyAccessor = $this->getConfigurationPool()->getPropertyAccessor();
-            $propertyPath = new PropertyPath($this->getParentAssociationMapping());
-
-            $object = $this->getSubject();
-
-            $value = $propertyAccessor->getValue($object, $propertyPath);
-
-            if (\is_array($value) || ($value instanceof \Traversable && $value instanceof \ArrayAccess)) {
-                $value[] = $parent;
-                $propertyAccessor->setValue($object, $propertyPath, $value);
-            } else {
-                $propertyAccessor->setValue($object, $propertyPath, $parent);
-            }
         }
 
         $formBuilder = $this->getFormBuilder();
